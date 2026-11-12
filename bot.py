@@ -4,7 +4,7 @@ from pathlib import Path
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command, CommandObject
-from aiogram.types import Message
+from aiogram.types import Message, BotCommand
 
 # ================== НАСТРОЙКИ ==================
 BOT_TOKEN = "9165585222:AAFIxaapFWfBT46DoUAYt_dKupLwrJOHVVI"
@@ -75,16 +75,11 @@ async def cmd_start(message: Message):
         save_data(data)
     
     text = (
-        "Привет!\n\n"
-        "Команда <b>/scales</b> — показать текущие шкалы\n\n"
-        "<b>Команды только для админа:</b>\n"
-        "/set <шкала> <число> — изменить значение\n"
-        "/desc <шкала> <текст> — изменить пояснение\n"
-        "/photo — ответь этой командой на картинку, чтобы установить её\n\n"
-        "<b>Названия шкал:</b>\n"
-        "sympathy, trust, mental, finance"
+        "Привет! Этот бот был создан, чтобы ты мог легко отследить моё состояние. "
+        "Сама говорить я не могу, поэтому вот тебе костыль.\n\n"
+        "Нажми /scales чтобы посмотреть текущие шкалы."
     )
-    await message.answer(text, parse_mode="HTML")
+    await message.answer(text)
 
 @dp.message(Command("scales", "шкалы", "scale"))
 async def cmd_scales(message: Message):
@@ -162,27 +157,4 @@ async def cmd_desc(message: Message, command: CommandObject):
 
 @dp.message(Command("photo"))
 async def cmd_photo(message: Message):
-    if message.from_user.id not in ADMIN_IDS:
-        return await message.answer("⛔ Только администратор")
-
-    if not message.reply_to_message or not message.reply_to_message.photo:
-        return await message.answer("Ответь командой /photo на сообщение с картинкой")
-
-    photo = message.reply_to_message.photo[-1]
-    file_id = photo.file_id
-
-    data = load_data()
-    data["photo_id"] = file_id
-    save_data(data)
-
-    await message.answer("✅ Картинка установлена")
-
-    text = format_scales_text(data)
-    await notify_all_users(text, file_id)
-
-async def main():
-    print("Бот запущен...")
-    await dp.start_polling(bot)
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    if message.from_user.id not in 
