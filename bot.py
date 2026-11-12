@@ -106,7 +106,9 @@ async def cmd_start(message: Message):
         "Сама говорить я не могу, поэтому вот тебе костыль.\n\n"
         "Нажми /scales чтобы посмотреть текущие шкалы."
     )
-    await message.answer(text)@dp.message(Command("scales", "шкалы", "scale"))
+    await message.answer(text)
+
+@dp.message(Command("scales", "шкалы", "scale"))
 async def cmd_scales(message: Message):
     data = await load_data()
     text = format_scales_text(data)
@@ -194,9 +196,7 @@ async def cmd_update(message: Message):
             "mental 80 Текст состояния\n"
             "finance 40 Текст финансов</code>",
             parse_mode="HTML"
-        )
-
-    data = await load_data()
+        )data = await load_data()
     updated = []
 
     for line in content.splitlines():
@@ -206,8 +206,10 @@ async def cmd_update(message: Message):
 
         parts = line.split(maxsplit=2)
         if len(parts) < 2:
-            continuescale_key = parts[0].lower()
-        if scale_key not in SCALES:
+            continue
+
+        key = parts[0].lower()
+        if key not in SCALES:
             continue
 
         try:
@@ -217,11 +219,11 @@ async def cmd_update(message: Message):
         except ValueError:
             continue
 
-        desc = parts[2] if len(parts) >= 3 else data["scales"][scale_key].get("desc", "")
+        desc = parts[2] if len(parts) >= 3 else data["scales"][key].get("desc", "")
 
-        data["scales"][scale_key]["value"] = value
-        data["scales"][scale_key]["desc"] = desc
-        updated.append(SCALES[scale_key])
+        data["scales"][key]["value"] = value
+        data["scales"][key]["desc"] = desc
+        updated.append(SCALES[key])
 
     if not updated:
         return await message.answer("Не удалось обновить шкалы. Проверь формат.")
