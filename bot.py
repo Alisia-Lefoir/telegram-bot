@@ -90,17 +90,15 @@ async def cmd_scales(message: Message):
     if photo_id:
         await message.answer_photo(photo=photo_id, caption=text, parse_mode="HTML")
     else:
-        await message.answer(text, parse_mode="HTML")
-
-@dp.message(Command("set"))
+        await message.answer(text, parse_mode="HTML")@dp.message(Command("set"))
 async def cmd_set(message: Message, command: CommandObject):
     if message.from_user.id not in ADMIN_IDS:
         return await message.answer("⛔ Только администратор")
 
     if not command.args:
         return await message.answer("Пример: <code>/set mental 70</code>", parse_mode="HTML")
-        
-        parts = command.args.strip().split(maxsplit=1)
+
+    parts = command.args.strip().split(maxsplit=1)
     if len(parts) != 2:
         return await message.answer("Нужно: /set <шкала> <число>")
 
@@ -156,11 +154,17 @@ async def cmd_desc(message: Message, command: CommandObject):
     await notify_all_users(text, data.get("photo_id"))
 
 @dp.message(Command("update"))
-async def cmd_update(message: Message, command: CommandObject):
+async def cmd_update(message: Message):
     if message.from_user.id not in ADMIN_IDS:
         return await message.answer("⛔ Только администратор")
 
-    if not command.args:
+    # Берём весь текст сообщения после команды
+    text = message.text or ""
+    # Убираем саму команду /update
+    if text.lower().startswith("/update"):
+        text = text[7:].strip()
+
+    if not text:
         return await message.answer(
             "Пример использования:\n\n"
             "<code>/update\n"
@@ -170,9 +174,9 @@ async def cmd_update(message: Message, command: CommandObject):
             "finance 40 Стабильно</code>",
             parse_mode="HTML"
         )
-        
-        data = load_data()
-    lines = command.args.strip().splitlines()
+
+    data = load_data()
+    lines = text.strip().splitlines()
     updated = []
 
     for line in lines:
@@ -195,52 +199,4 @@ async def cmd_update(message: Message, command: CommandObject):
         except ValueError:
             continue
 
-        desc = parts[2] if len(parts) > 2 else data["scales"][scale_key]["desc"]
-
-        data["scales"][scale_key]["value"] = value
-        data["scales"][scale_key]["desc"] = desc
-        updated.append(SCALES[scale_key])
-
-    if not updated:
-        return await message.answer("Не удалось обновить ни одну шкалу. Проверь формат.")
-
-    save_data(data)
-    await message.answer(f"✅ Обновлено: {', '.join(updated)}")
-
-    text = format_scales_text(data)
-    await notify_all_users(text, data.get("photo_id"))
-
-@dp.message(Command("photo"))
-async def cmd_photo(message: Message):
-    if message.from_user.id not in ADMIN_IDS:
-        return await message.answer("⛔ Только администратор")
-
-    if not message.reply_to_message or not message.reply_to_message.photo:
-        return await message.answer("Ответь командой /photo на сообщение с картинкой")
-
-    photo = message.reply_to_message.photo[-1]
-    file_id = photo.file_id
-
-    data = load_data()
-    data["photo_id"] = file_id
-    save_data(data)
-
-    await message.answer("✅ Картинка установлена")
-
-    text = format_scales_text(data)
-    await notify_all_users(text, file_id)
-
-async def set_commands():
-    commands = [
-        BotCommand(command="start", description="Запустить бота"),
-        BotCommand(command="scales", description="Показать текущие шкалы"),
-    ]
-    await bot.set_my_commands(commands)
-
-async def main():
-    await set_commands()
-    print("Бот запущен...")
-    await dp.start_polling(bot)
-
-if __name__ == "__main__":
-    asyncio.run(main())
+        desc = parts[2] if len(parts) > 2 else data["scales"][scale_key].get("desc", "")
