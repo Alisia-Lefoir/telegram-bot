@@ -2,7 +2,7 @@ import asyncio
 import json
 from pathlib import Path
 
-from aiogram import Bot, Dispatcher, F
+from aiogram import Bot, Dispatcher
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message, BotCommand
 
@@ -24,11 +24,14 @@ dp = Dispatcher()
 
 def load_data() -> dict:
     if DATA_FILE.exists():
-        return json.loads(DATA_FILE.read_text(encoding="utf-8"))
-    
+        try:
+            return json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
     return {
         "scales": {
-            key: {"value": 0, "desc": "Пояснение пока не задано"} 
+            key: {"value": 0, "desc": "Пояснение пока не задано"}
             for key in SCALES
         },
         "photo_id": None,
@@ -39,7 +42,7 @@ def save_data(data: dict):
     DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 def make_progress_bar(percent: int, length: int = 16) -> str:
-    percent = max(0, min(100, percent))
+    percent = max(0, min(100, int(percent)))
     filled = round(length * percent / 100)
     bar = "█" * filled + "░" * (length - filled)
     return f"{bar} {percent}%"
@@ -48,7 +51,7 @@ def format_scales_text(data: dict) -> str:
     lines = ["📊 <b>Текущие шкалы:</b>\n"]
     for key, title in SCALES.items():
         scale = data["scales"].get(key, {"value": 0, "desc": ""})
-        bar = make_progress_bar(scale["value"])
+        bar = make_progress_bar(scale.get("value", 0))
         desc = scale.get("desc", "")
         lines.append(f"<b>{title}</b>\n<code>{bar}</code>\n<i>{desc}</i>\n")
     return "\n".join(lines)
@@ -56,7 +59,7 @@ def format_scales_text(data: dict) -> str:
 async def notify_all_users(text: str, photo_id: str | None = None):
     data = load_data()
     users = data.get("users", [])
-    
+
     for user_id in users:
         try:
             if photo_id:
@@ -69,11 +72,11 @@ async def notify_all_users(text: str, photo_id: str | None = None):
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
     data = load_data()
-    
+
     if message.from_user.id not in data["users"]:
         data["users"].append(message.from_user.id)
         save_data(data)
-    
+
     text = (
         "Привет! Этот бот был создан, чтобы ты мог легко отследить моё состояние. "
         "Сама говорить я не могу, поэтому вот тебе костыль.\n\n"
@@ -86,13 +89,11 @@ async def cmd_scales(message: Message):
     data = load_data()
     text = format_scales_text(data)
     photo_id = data.get("photo_id")
-    
+
     if photo_id:
         await message.answer_photo(photo=photo_id, caption=text, parse_mode="HTML")
     else:
-        await message.answer(text, parse_mode="HTML")
-
-@dp.message(Command("set"))
+        await message.answer(text, parse_mode="HTML")@dp.message(Command("set"))
 async def cmd_set(message: Message, command: CommandObject):
     if message.from_user.id not in ADMIN_IDS:
         return await message.answer("⛔ Только администратор")
@@ -103,15 +104,13 @@ async def cmd_set(message: Message, command: CommandObject):
     parts = command.args.strip().split(maxsplit=1)
     if len(parts) != 2:
         return await message.answer("Нужно: /set <шкала> <число>")
-        
-        scale_key, value_str = parts
-    scale_key = scale_key.lower()
 
+    scale_key = parts[0].lower()
     if scale_key not in SCALES:
         return await message.answer("Неизвестная шкала. Доступны: sympathy, trust, mental, finance")
 
     try:
-        value = int(value_str)
+        value = int(parts[1])
         if not 0 <= value <= 100:
             raise ValueError
     except ValueError:
@@ -121,8 +120,7 @@ async def cmd_set(message: Message, command: CommandObject):
     data["scales"][scale_key]["value"] = value
     save_data(data)
 
-    title = SCALES[scale_key]
-    await message.answer(f"✅ {title} = {value}%")
+    await message.answer(f"✅ {SCALES[scale_key]} = {value}%")
 
     text = format_scales_text(data)
     await notify_all_users(text, data.get("photo_id"))
@@ -137,20 +135,76 @@ async def cmd_desc(message: Message, command: CommandObject):
 
     parts = command.args.strip().split(maxsplit=1)
     if len(parts) < 2:
-        return await message.answer("Нужно: /desc <шкала> <текст пояснения>")
+        return await message.answer("Нужно: /desc <шкала> <текст>")
 
-    scale_key, desc_text = parts
-    scale_key = scale_key.lower()
-
+    scale_key = parts[0].lower()
     if scale_key not in SCALES:
         return await message.answer("Неизвестная шкала")
 
     data = load_data()
-    data["scales"][scale_key]["desc"] = desc_text
+    data["scales"][scale_key]["desc"] = parts[1]
     save_data(data)
 
-    title = SCALES[scale_key]
-    await message.answer(f"✅ Пояснение для «{title}» обновлено")
+    await message.answer(f"✅ Пояснение для «{SCALES[scale_key]}» обновлено")
+
+    text = format_scales_text(data)
+    await notify_all_users(text, data.get("photo_id"))
+
+@dp.message(Command("update"))
+async def cmd_update(message: Message):
+    if message.from_user.id not in ADMIN_IDS:
+        return await message.answer("⛔ Только администратор")
+
+    full_text = message.text or ""
+    # Убираем команду /update из начала
+    if full_text.lower().startswith("/update"):
+        content = full_text[7:].strip()
+    else:
+        content = full_text.strip()
+
+    if not content:
+        return await message.answer(
+            "Пример:\n\n"
+            "<code>/update\n"
+            "sympathy 70 Текст симпатии\n"
+            "trust 55 Текст доверия\n"
+            "mental 80 Текст состояния\n"
+            "finance 40 Текст финансов</code>",
+            parse_mode="HTML"
+        )
+
+    data = load_data()
+    updated = []
+
+    for line in content.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+
+        parts = line.split(maxsplit=2)
+        if len(parts) < 2:
+            continue
+
+        scale_key = parts[0].lower()
+        if scale_key not in SCALES:
+            continue
+
+        try:
+            value = int(parts[1])
+            if not 0 <= value <= 100:
+                continue
+        except ValueError:
+            continue
+
+        desc = parts[2] if len(parts) >= 3 else data["scales"][scale_key].get("desc", "")
+
+        data["scales"][scale_key]["value"] = value
+        data["scales"][scale_key]["desc"] = desc
+        updated.append(SCALES[scale_key])
+
+    if not updated:
+        return await message.answer("Не удалось обновить шкалы. Проверь формат.")save_data(data)
+    await message.answer("✅ Обновлено: " + ", ".join(updated))
 
     text = format_scales_text(data)
     await notify_all_users(text, data.get("photo_id"))
@@ -183,8 +237,8 @@ async def set_commands():
     await bot.set_my_commands(commands)
 
 async def main():
+    print("Бот запущен...", flush=True)
     await set_commands()
-    print("Бот запущен...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
