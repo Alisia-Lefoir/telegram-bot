@@ -98,9 +98,7 @@ async def cmd_set(message: Message, command: CommandObject):
         return await message.answer("⛔ Только администратор")
 
     if not command.args:
-        return await message.answer("Пример: <code>/set mental 70</code>", parse_mode="HTML")
-
-    parts = command.args.strip().split(maxsplit=1)
+        return await message.answer("Пример: <code>/set mental 70</code>", parse_mode="HTML")parts = command.args.strip().split(maxsplit=1)
     if len(parts) != 2:
         return await message.answer("Нужно: /set <шкала> <число>")
 
@@ -112,7 +110,8 @@ async def cmd_set(message: Message, command: CommandObject):
 
     try:
         value = int(value_str)
-        if not 0 <= value <= 100:raise ValueError
+        if not 0 <= value <= 100:
+            raise ValueError
     except ValueError:
         return await message.answer("Число должно быть от 0 до 100")
 
@@ -150,6 +149,59 @@ async def cmd_desc(message: Message, command: CommandObject):
 
     title = SCALES[scale_key]
     await message.answer(f"✅ Пояснение для «{title}» обновлено")
+
+    text = format_scales_text(data)
+    await notify_all_users(text, data.get("photo_id"))
+
+@dp.message(Command("update"))
+async def cmd_update(message: Message, command: CommandObject):
+    if message.from_user.id not in ADMIN_IDS:
+        return await message.answer("⛔ Только администратор")
+
+    if not command.args:
+        return await message.answer(
+            "Пример использования:\n\n"
+            "<code>/update\n"
+            "sympathy 70 Мне приятно\n"
+            "trust 55 Пока осторожно\n"
+            "mental 80 Хороший день\n"
+            "finance 40 Стабильно</code>",
+            parse_mode="HTML"
+        )data = load_data()
+    lines = command.args.strip().splitlines()
+    updated = []
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        parts = line.split(maxsplit=2)
+        if len(parts) < 2:
+            continue
+
+        scale_key = parts[0].lower()
+        if scale_key not in SCALES:
+            continue
+
+        try:
+            value = int(parts[1])
+            if not 0 <= value <= 100:
+                continue
+        except ValueError:
+            continue
+
+        desc = parts[2] if len(parts) > 2 else data["scales"][scale_key]["desc"]
+
+        data["scales"][scale_key]["value"] = value
+        data["scales"][scale_key]["desc"] = desc
+        updated.append(SCALES[scale_key])
+
+    if not updated:
+        return await message.answer("Не удалось обновить ни одну шкалу. Проверь формат.")
+
+    save_data(data)
+    await message.answer(f"✅ Обновлено: {', '.join(updated)}")
 
     text = format_scales_text(data)
     await notify_all_users(text, data.get("photo_id"))
