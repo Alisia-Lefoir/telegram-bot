@@ -196,7 +196,9 @@ async def cmd_update(message: Message):
             "mental 80 Текст состояния\n"
             "finance 40 Текст финансов</code>",
             parse_mode="HTML"
-        )data = await load_data()
+        )
+        
+        data = await load_data()
     updated = []
 
     for line in content.splitlines():
