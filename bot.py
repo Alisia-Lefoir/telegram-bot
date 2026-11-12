@@ -169,7 +169,9 @@ async def cmd_update(message: Message, command: CommandObject):
             "mental 80 Хороший день\n"
             "finance 40 Стабильно</code>",
             parse_mode="HTML"
-        )data = load_data()
+        )
+        
+        data = load_data()
     lines = command.args.strip().splitlines()
     updated = []
 
