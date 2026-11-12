@@ -177,31 +177,37 @@ async def cmd_desc(message: Message, command: CommandObject):
     await notify_all_users(text, data.get("photo_id"))
 
 @dp.message(Command("update"))
-async def cmd_update(message: Message):
+async def cmd_update(message: Message, command: CommandObject):
     if message.from_user.id not in ADMIN_IDS:
         return await message.answer("⛔ Только администратор")
 
-    full_text = message.text or ""
-    if full_text.lower().startswith("/update"):
-        content = full_text[7:].strip()
-    else:
-        content = full_text.strip()
+    # Пробуем получить текст разными способами
+    text = (command.args or "").strip()
+    
+    if not text:
+        raw = message.text or ""
+        if raw.lower().startswith("/update"):
+            text = raw[7:].strip()
 
-    if not content:
+    # === ОТЛАДКА ===
+    await message.answer(f"Полученный текст:\n<code>{text if text else 'пусто'}</code>", parse_mode="HTML")
+    # ===============
+
+    if not text:
         return await message.answer(
-            "Пример:\n\n"
+            "Отправь так (одним сообщением):\n\n"
             "<code>/update\n"
-            "sympathy 70 Текст симпатии\n"
-            "trust 55 Текст доверия\n"
-            "mental 80 Текст состояния\n"
-            "finance 40 Текст финансов</code>",
+            "sympathy 90 Я тебя люблю\n"
+            "trust 75 Доверяю\n"
+            "mental 60 Устала\n"
+            "finance 80 Спокойно</code>",
             parse_mode="HTML"
         )
-        
-        data = await load_data()
+
+    data = await load_data()
     updated = []
 
-    for line in content.splitlines():
+    for line in text.splitlines():
         line = line.strip()
         if not line:
             continue
@@ -221,20 +227,17 @@ async def cmd_update(message: Message):
         except ValueError:
             continue
 
-        desc = parts[2] if len(parts) >= 3 else data["scales"][key].get("desc", "")
-
+        desc = parts[2] if len(parts) > 2 else data["scales"][key].get("desc", "")
         data["scales"][key]["value"] = value
         data["scales"][key]["desc"] = desc
         updated.append(SCALES[key])
 
     if not updated:
-        return await message.answer("Не удалось обновить шкалы. Проверь формат.")
+        return await message.answer("Не удалось распознать ни одной шкалы.")
 
     await save_data(data)
     await message.answer("✅ Обновлено: " + ", ".join(updated))
-
-    text = format_scales_text(data)
-    await notify_all_users(text, data.get("photo_id"))
+    await notify_all_users(format_scales_text(data), data.get("photo_id"))
 
 @dp.message(Command("photo"))
 async def cmd_photo(message: Message):
