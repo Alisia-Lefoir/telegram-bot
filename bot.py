@@ -90,7 +90,9 @@ async def cmd_scales(message: Message):
     if photo_id:
         await message.answer_photo(photo=photo_id, caption=text, parse_mode="HTML")
     else:
-        await message.answer(text, parse_mode="HTML")@dp.message(Command("set"))
+        await message.answer(text, parse_mode="HTML")
+
+@dp.message(Command("set"))
 async def cmd_set(message: Message, command: CommandObject):
     if message.from_user.id not in ADMIN_IDS:
         return await message.answer("⛔ Только администратор")
@@ -100,9 +102,7 @@ async def cmd_set(message: Message, command: CommandObject):
 
     parts = command.args.strip().split(maxsplit=1)
     if len(parts) != 2:
-        return await message.answer("Нужно: /set <шкала> <число>")
-
-    scale_key, value_str = parts
+        return await message.answer("Нужно: /set <шкала> <число>")scale_key, value_str = parts
     scale_key = scale_key.lower()
 
     if scale_key not in SCALES:
@@ -153,50 +153,37 @@ async def cmd_desc(message: Message, command: CommandObject):
     text = format_scales_text(data)
     await notify_all_users(text, data.get("photo_id"))
 
-@dp.message(Command("update"))
-async def cmd_update(message: Message):
+@dp.message(Command("photo"))
+async def cmd_photo(message: Message):
     if message.from_user.id not in ADMIN_IDS:
         return await message.answer("⛔ Только администратор")
 
-    # Берём весь текст сообщения после команды
-    text = message.text or ""
-    # Убираем саму команду /update
-    if text.lower().startswith("/update"):
-        text = text[7:].strip()
+    if not message.reply_to_message or not message.reply_to_message.photo:
+        return await message.answer("Ответь командой /photo на сообщение с картинкой")
 
-    if not text:
-        return await message.answer(
-            "Пример использования:\n\n"
-            "<code>/update\n"
-            "sympathy 70 Мне приятно\n"
-            "trust 55 Пока осторожно\n"
-            "mental 80 Хороший день\n"
-            "finance 40 Стабильно</code>",
-            parse_mode="HTML"
-        )
+    photo = message.reply_to_message.photo[-1]
+    file_id = photo.file_id
 
     data = load_data()
-    lines = text.strip().splitlines()
-    updated = []
+    data["photo_id"] = file_id
+    save_data(data)
 
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
+    await message.answer("✅ Картинка установлена")
 
-        parts = line.split(maxsplit=2)
-        if len(parts) < 2:
-            continue
+    text = format_scales_text(data)
+    await notify_all_users(text, file_id)
 
-        scale_key = parts[0].lower()
-        if scale_key not in SCALES:
-            continue
+async def set_commands():
+    commands = [
+        BotCommand(command="start", description="Запустить бота"),
+        BotCommand(command="scales", description="Показать текущие шкалы"),
+    ]
+    await bot.set_my_commands(commands)
 
-        try:
-            value = int(parts[1])
-            if not 0 <= value <= 100:
-                continue
-        except ValueError:
-            continue
+async def main():
+    await set_commands()
+    print("Бот запущен...")
+    await dp.start_polling(bot)
 
-        desc = parts[2] if len(parts) > 2 else data["scales"][scale_key].get("desc", "")
+if __name__ == "__main__":
+    asyncio.run(main())
