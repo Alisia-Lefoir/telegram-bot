@@ -102,7 +102,9 @@ async def cmd_set(message: Message, command: CommandObject):
 
     parts = command.args.strip().split(maxsplit=1)
     if len(parts) != 2:
-        return await message.answer("Нужно: /set <шкала> <число>")scale_key, value_str = parts
+        return await message.answer("Нужно: /set <шкала> <число>")
+        
+        scale_key, value_str = parts
     scale_key = scale_key.lower()
 
     if scale_key not in SCALES:
