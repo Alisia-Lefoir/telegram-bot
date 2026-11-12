@@ -98,7 +98,9 @@ async def cmd_set(message: Message, command: CommandObject):
         return await message.answer("⛔ Только администратор")
 
     if not command.args:
-        return await message.answer("Пример: <code>/set mental 70</code>", parse_mode="HTML")parts = command.args.strip().split(maxsplit=1)
+        return await message.answer("Пример: <code>/set mental 70</code>", parse_mode="HTML")
+        
+        parts = command.args.strip().split(maxsplit=1)
     if len(parts) != 2:
         return await message.answer("Нужно: /set <шкала> <число>")
 
