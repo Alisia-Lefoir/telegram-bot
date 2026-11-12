@@ -203,7 +203,8 @@ async def cmd_update(message: Message):
         updated.append(SCALES[scale_key])
 
     if not updated:
-        return await message.answer("Не удалось обновить шкалы. Проверь формат.")save_data(data)
+        return await message.answer("Не удалось обновить шкалы. Проверь формат.")
+        save_data(data)
     await message.answer("✅ Обновлено: " + ", ".join(updated))
 
     text = format_scales_text(data)
