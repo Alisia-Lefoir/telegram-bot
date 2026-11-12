@@ -112,8 +112,7 @@ async def cmd_set(message: Message, command: CommandObject):
 
     try:
         value = int(value_str)
-        if not 0 <= value <= 100:
-            raise ValueError
+        if not 0 <= value <= 100:raise ValueError
     except ValueError:
         return await message.answer("Число должно быть от 0 до 100")
 
@@ -157,4 +156,35 @@ async def cmd_desc(message: Message, command: CommandObject):
 
 @dp.message(Command("photo"))
 async def cmd_photo(message: Message):
-    if message.from_user.id not in 
+    if message.from_user.id not in ADMIN_IDS:
+        return await message.answer("⛔ Только администратор")
+
+    if not message.reply_to_message or not message.reply_to_message.photo:
+        return await message.answer("Ответь командой /photo на сообщение с картинкой")
+
+    photo = message.reply_to_message.photo[-1]
+    file_id = photo.file_id
+
+    data = load_data()
+    data["photo_id"] = file_id
+    save_data(data)
+
+    await message.answer("✅ Картинка установлена")
+
+    text = format_scales_text(data)
+    await notify_all_users(text, file_id)
+
+async def set_commands():
+    commands = [
+        BotCommand(command="start", description="Запустить бота"),
+        BotCommand(command="scales", description="Показать текущие шкалы"),
+    ]
+    await bot.set_my_commands(commands)
+
+async def main():
+    await set_commands()
+    print("Бот запущен...")
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
